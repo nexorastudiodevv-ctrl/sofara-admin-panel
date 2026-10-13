@@ -134,6 +134,33 @@
               <textarea id="contentInput" rows="18" required></textarea>
             </label>
 
+            <fieldset class="affiliate-fields">
+              <legend>رابط ترويجي / تسويق بالعمولة (اختياري)</legend>
+              <label>
+                رابط الشركة (HTTPS)
+                <input type="url" id="affiliateUrlInput" placeholder="https://..." />
+              </label>
+              <label>
+                وصف العرض
+                <input type="text" id="affiliateDescriptionInput" maxlength="180" placeholder="مثال: قارن خيارات تأجير السيارات في وجهتك" />
+              </label>
+              <div class="two-columns">
+                <label>
+                  نص زر الرابط
+                  <input type="text" id="affiliateLabelInput" maxlength="70" placeholder="استكشف خيارات التأجير" />
+                </label>
+                <label>
+                  موضع الرابط داخل المقال
+                  <select id="affiliatePositionInput">
+                    <option value="none">بدون رابط ترويجي</option>
+                    <option value="top">بداية المقال</option>
+                    <option value="middle">وسط المقال</option>
+                    <option value="bottom">نهاية المقال</option>
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+
             <div class="two-columns">
               <label>
                 تاريخ النشر

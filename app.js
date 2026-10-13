@@ -34,6 +34,10 @@ const fields = {
   imageUrl: document.getElementById('imageUrlInput'),
   imageAlt: document.getElementById('imageAltInput'),
   content: document.getElementById('contentInput'),
+  affiliateUrl: document.getElementById('affiliateUrlInput'),
+  affiliateDescription: document.getElementById('affiliateDescriptionInput'),
+  affiliateLabel: document.getElementById('affiliateLabelInput'),
+  affiliatePosition: document.getElementById('affiliatePositionInput'),
   publishedAt: document.getElementById('publishedAtInput'),
   articleId: document.getElementById('articleIdInput')
 };
@@ -85,6 +89,10 @@ function getArticlePayload() {
     imageUrl: fields.imageUrl.value.trim(),
     imageAlt: fields.imageAlt.value.trim(),
     content: fields.content.value.trim(),
+    affiliateUrl: fields.affiliateUrl.value.trim(),
+    affiliateDescription: fields.affiliateDescription.value.trim(),
+    affiliateLabel: fields.affiliateLabel.value.trim(),
+    affiliatePosition: fields.affiliatePosition.value,
     publishedAt: publishedAtValue,
     updatedAt: new Date().toISOString()
   };
@@ -127,6 +135,36 @@ function getPublishedArticleValidationError(payload) {
     if (!payload.imageAlt) {
       return 'أضف وصفًا بديلًا للصورة قبل النشر.';
     }
+  }
+
+  const affiliateValidationError = getAffiliateValidationError(payload);
+  if (affiliateValidationError) return affiliateValidationError;
+
+  return '';
+}
+
+function getAffiliateValidationError(payload) {
+  const hasAffiliateDetails = Boolean(payload.affiliateDescription || payload.affiliateLabel);
+  if (!payload.affiliateUrl) {
+    return hasAffiliateDetails || payload.affiliatePosition !== 'none'
+      ? 'اختر رابط الشركة لإعداد العرض الترويجي، أو اختر «بدون رابط ترويجي».'
+      : '';
+  }
+
+  let affiliateUrl;
+  try {
+    affiliateUrl = new URL(payload.affiliateUrl);
+  } catch {
+    return 'رابط الشركة الترويجي غير صالح.';
+  }
+  if (affiliateUrl.protocol !== 'https:') {
+    return 'رابط الشركة الترويجي يجب أن يبدأ بـ https://.';
+  }
+  if (!payload.affiliateLabel) {
+    return 'اكتب نص زر الرابط الترويجي.';
+  }
+  if (!['top', 'middle', 'bottom'].includes(payload.affiliatePosition)) {
+    return 'اختر موضع ظهور الرابط الترويجي داخل المقال.';
   }
 
   return '';
@@ -189,6 +227,10 @@ function fillFormFromArticle(article) {
   fields.imageUrl.value = article.imageUrl || '';
   fields.imageAlt.value = article.imageAlt || '';
   fields.content.value = article.content || '';
+  fields.affiliateUrl.value = article.affiliateUrl || '';
+  fields.affiliateDescription.value = article.affiliateDescription || '';
+  fields.affiliateLabel.value = article.affiliateLabel || '';
+  fields.affiliatePosition.value = article.affiliatePosition || 'none';
   fields.articleId.value = article.id || '';
 
   if (article.publishedAt) {
@@ -273,6 +315,14 @@ async function saveArticle() {
       if (!payload.excerpt) fields.excerpt.focus();
       return;
     }
+  }
+  const affiliateValidationError = getAffiliateValidationError(payload);
+  if (affiliateValidationError) {
+    setMessage(affiliateValidationError);
+    if (!payload.affiliateUrl) fields.affiliateUrl.focus();
+    else if (!payload.affiliateLabel) fields.affiliateLabel.focus();
+    else fields.affiliatePosition.focus();
+    return;
   }
 
   let articleWasSaved = false;

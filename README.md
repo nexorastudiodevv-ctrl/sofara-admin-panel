@@ -13,3 +13,7 @@ Add `nexorastudiodevv-ctrl.github.io` to Firebase Authentication's authorized do
 ## Article publishing
 
 The dashboard saves article documents to the `articles` collection in Firestore. To update the public static website, run **Publish Firebase articles** in GitHub Actions in the `sofara` website repository. Do not place a GitHub token in this dashboard.
+
+## Affiliate links
+
+In an article, optionally enter an HTTPS partner URL, a short description, a button label, and choose whether the promotion appears at the beginning, middle, or end. The generated article adds a commission disclosure automatically. Add only partner links relevant to the article and follow the partner program's terms.
