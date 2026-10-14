@@ -257,29 +257,32 @@ async function triggerSiteBuildIfNeeded(payload) {
     return { ok: true, skipped: true };
   }
 
+  const publishApiUrl = String(window.PUBLISH_API_URL || '').trim().replace(/\/$/, '');
+  if (!publishApiUrl) {
+    return {
+      ok: false,
+      deferred: true,
+      message: 'رابط خدمة النشر الفوري غير مضبوط في إعدادات لوحة التحكم.'
+    };
+  }
+
+  const endpoint = publishApiUrl.endsWith('/api/publish')
+    ? publishApiUrl
+    : `${publishApiUrl}/api/publish`;
+
   try {
-    const healthResponse = await fetch('/api/health');
-    const health = healthResponse.ok
-      ? await healthResponse.json().catch(() => null)
-      : null;
-
-    if (health?.ok !== true) {
-      return {
-        ok: false,
-        deferred: true,
-        message: 'خادم البناء الفوري غير متاح على هذا العنوان.'
-      };
-    }
-
-    const response = await fetch('/api/publish', {
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: ['Bearer', await auth.currentUser.getIdToken()].join(' '),
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(payload)
     });
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      return { ok: false, deferred: false, message: result.message || 'Build request failed.' };
+      return { ok: false, deferred: false, message: result.message || 'تعذّر إرسال الطلب إلى خدمة النشر.' };
     }
 
     return { ok: true, skipped: false, result };
@@ -287,8 +290,8 @@ async function triggerSiteBuildIfNeeded(payload) {
     console.error(error);
     return {
       ok: false,
-      deferred: true,
-      message: 'تعذّر الاتصال بخادم البناء الفوري.'
+      deferred: false,
+      message: 'تعذّر الاتصال بخدمة النشر الفوري على Vercel.'
     };
   }
 }
