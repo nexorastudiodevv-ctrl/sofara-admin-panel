@@ -1,3 +1,9 @@
+import {
+  escapeHtml,
+  normalizeArticleSlug,
+  saveArticleDocument
+} from './article-publish-utils.mjs';
+
 function shouldTriggerBuild(article = {}) {
   return article.status === 'published';
 }
@@ -76,11 +82,26 @@ function resetForm() {
   editorTitle.textContent = 'مقال جديد';
 }
 
+function generateArticleSlug(title) {
+  const readableSlug = title.toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/g, '');
+
+  return `${readableSlug || 'article'}-${Date.now()}`;
+}
+
 function getArticlePayload() {
   const publishedAtValue = fields.publishedAt.value ? new Date(fields.publishedAt.value).toISOString() : new Date().toISOString();
+  const normalizedSlug = normalizeArticleSlug(fields.slug.value);
+  const slug = normalizedSlug || generateArticleSlug(fields.title.value.trim());
+  fields.slug.value = slug;
 
   return {
-    slug: fields.slug.value.trim(),
+    slug,
     title: fields.title.value.trim(),
     category: fields.category.value.trim(),
     status: fields.status.value,
@@ -191,13 +212,13 @@ function renderArticles(list) {
 
   articlesTableBody.innerHTML = list.map(article => `
     <tr>
-      <td>${article.title || 'بدون عنوان'}</td>
-      <td>${article.category || '-'}</td>
+      <td>${escapeHtml(article.title || 'بدون عنوان')}</td>
+      <td>${escapeHtml(article.category || '-')}</td>
       <td>${article.status === 'published' ? 'منشور' : 'مسودة'}</td>
-      <td>${article.publishedAt ? new Date(article.publishedAt).toLocaleString('ar-EG') : '-'}</td>
+      <td>${formatPublishedAt(article.publishedAt)}</td>
       <td>
-        <button type="button" class="action-btn edit-btn" data-id="${article.id}">تعديل</button>
-        <button type="button" class="action-btn delete" data-id="${article.id}">حذف</button>
+        <button type="button" class="action-btn edit-btn" data-id="${escapeHtml(article.id)}">تعديل</button>
+        <button type="button" class="action-btn delete" data-id="${escapeHtml(article.id)}">حذف</button>
       </td>
     </tr>
   `).join('');
@@ -209,12 +230,27 @@ function renderArticles(list) {
   deleteButtons.forEach(btn => btn.addEventListener('click', () => deleteArticle(btn.dataset.id)));
 }
 
+function formatPublishedAt(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : escapeHtml(date.toLocaleString('ar-EG'));
+}
+
 async function loadArticles() {
   if (!db) return;
 
   const snapshot = await db.collection('articles').orderBy('publishedAt', 'desc').get();
   const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   renderArticles(list);
+}
+
+async function loadArticlesWithFeedback() {
+  try {
+    await loadArticles();
+  } catch (error) {
+    console.error(error);
+    setMessage(`تعذّر تحميل المقالات: ${error.message || 'حدث خطأ غير معروف.'}`);
+  }
 }
 
 function fillFormFromArticle(article) {
@@ -334,14 +370,14 @@ async function saveArticle() {
   setMessage(isPublished ? 'جارٍ حفظ المقال وتجهيز نشره...' : 'جارٍ حفظ المسودة...', false);
 
   try {
-    if (state.selectedArticleId) {
-      await db.collection('articles').doc(state.selectedArticleId).update(payload);
-    } else {
-      const docRef = db.collection('articles').doc(payload.slug);
-      await docRef.set({ ...payload, createdAt: new Date().toISOString() });
-      state.selectedArticleId = docRef.id;
-      fields.articleId.value = docRef.id;
-    }
+    const savedArticleId = await saveArticleDocument(
+      db,
+      state.selectedArticleId,
+      payload,
+      new Date().toISOString()
+    );
+    state.selectedArticleId = savedArticleId;
+    fields.articleId.value = savedArticleId;
     articleWasSaved = true;
 
     await loadArticles();
@@ -429,7 +465,7 @@ async function initializeFirebase() {
 
     if (loggedIn) {
       showView('dashboard');
-      loadArticles();
+      loadArticlesWithFeedback();
     } else {
       showView('login');
       resetForm();
@@ -456,7 +492,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   await auth.signOut();
 });
 
-document.getElementById('loadArticlesBtn').addEventListener('click', loadArticles);
+document.getElementById('loadArticlesBtn').addEventListener('click', loadArticlesWithFeedback);
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   await saveArticle();
