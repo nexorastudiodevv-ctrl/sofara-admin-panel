@@ -79,7 +79,7 @@
             <h2 id="editorTitle">مقال جديد</h2>
             <div class="editor-actions">
               <p id="editorMessage" class="message" role="status" aria-live="polite"></p>
-              <button id="saveArticleBtn" class="primary-btn" type="submit" form="articleForm">حفظ المقال</button>
+              <button id="saveArticleBtn" class="primary-btn" type="submit" form="articleForm">نشر المقال</button>
             </div>
           </div>
 
@@ -98,13 +98,13 @@
             <div class="two-columns">
               <label>
                 التصنيف
-                <input type="text" id="categoryInput" required />
+                <input type="text" id="categoryInput" placeholder="عام" />
               </label>
               <label>
                 الحالة
                 <select id="statusInput">
-                  <option value="draft">مسودة</option>
-                  <option value="published">منشور</option>
+                  <option value="published" selected>نشر فورًا</option>
+                  <option value="draft">حفظ كمسودة</option>
                 </select>
               </label>
             </div>

@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  createArticleTextFields,
   escapeHtml,
+  getPublishConfirmationMessage,
   normalizeArticleSlug,
   saveArticleDocument
 } from '../article-publish-utils.mjs';
@@ -19,6 +21,34 @@ test('escapes article values before they are inserted into HTML', () => {
     escapeHtml(`<img src="x" onerror='alert(1)'>&`),
     '&lt;img src=&quot;x&quot; onerror=&#39;alert(1)&#39;&gt;&amp;'
   );
+});
+
+test('confirms immediate Firebase publication when static generation is unavailable', () => {
+  const message = getPublishConfirmationMessage({
+    ok: false,
+    message: 'Missing FIREBASE_SERVICE_ACCOUNT configuration.'
+  });
+
+  assert.match(message, /تم نشر المقال مباشرة على الموقع عبر Firebase/);
+  assert.match(message, /Missing FIREBASE_SERVICE_ACCOUNT configuration/);
+  assert.match(message, /خلال 15 دقيقة/);
+});
+
+test('confirms static page generation was started after immediate publication', () => {
+  assert.equal(
+    getPublishConfirmationMessage({ ok: true }),
+    'تم نشر المقال مباشرة على الموقع، وبدأ تحديث الصفحات الثابتة لمحركات البحث.'
+  );
+});
+
+test('fills optional article metadata from article content for one-step publishing', () => {
+  const fields = createArticleTextFields({
+    content: '## دليل الرحلة\n\nاحجز مبكرًا وتحقق من وزن الأمتعة.'
+  });
+
+  assert.equal(fields.category, 'عام');
+  assert.equal(fields.excerpt, 'دليل الرحلة احجز مبكرًا وتحقق من وزن الأمتعة.');
+  assert.equal(fields.description, fields.excerpt);
 });
 
 function createMockFirestore(initialDocuments = {}) {

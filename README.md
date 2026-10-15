@@ -12,7 +12,9 @@ Add `nexorastudiodevv-ctrl.github.io` to Firebase Authentication's authorized do
 
 ## Article publishing
 
-The dashboard saves article documents to the `articles` collection in Firestore. To update the public static website, run **Publish Firebase articles** in GitHub Actions in the `sofara` website repository. Do not place a GitHub token in this dashboard.
+When an article is saved with status `published`, the public website reads it directly from Firestore: published articles appear in the homepage and blog list, and their article page loads by slug. Firestore rules must allow public reads only for published articles.
+
+The dashboard also requests a GitHub Actions run to generate static article pages and update the sitemap for search engines. If that optional static-page update cannot start, the article is still live through Firebase; the workflow retries automatically every 15 minutes. Do not place a GitHub token or Firebase service-account private key in this dashboard. Keep those credentials only in the publishing service's environment.
 
 ## Affiliate links
 

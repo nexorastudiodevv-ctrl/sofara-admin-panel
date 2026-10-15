@@ -10,6 +10,37 @@ export function normalizeArticleSlug(value = '') {
     .replace(/^-|-$/g, '');
 }
 
+export function getPublishConfirmationMessage(buildStatus) {
+  if (buildStatus.ok) {
+    return 'تم نشر المقال مباشرة على الموقع، وبدأ تحديث الصفحات الثابتة لمحركات البحث.';
+  }
+
+  const reason = buildStatus.message || 'تعذّر بدء تحديث الصفحات الثابتة.';
+  return `تم نشر المقال مباشرة على الموقع عبر Firebase. تعذّر تحديث الصفحات الثابتة لمحركات البحث الآن: ${reason} ستتم المحاولة تلقائيًا خلال 15 دقيقة.`;
+}
+
+export function createArticleTextFields({ category = '', description = '', excerpt = '', content = '' } = {}) {
+  const normalizedContent = String(content).trim();
+  const normalizedExcerpt = String(excerpt).trim() || createExcerpt(normalizedContent);
+
+  return {
+    category: String(category).trim() || 'عام',
+    description: String(description).trim() || normalizedExcerpt.slice(0, 200),
+    excerpt: normalizedExcerpt
+  };
+}
+
+function createExcerpt(content) {
+  return content
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[`*_>#-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
+}
+
 export function escapeHtml(value = '') {
   return String(value)
     .replaceAll('&', '&amp;')

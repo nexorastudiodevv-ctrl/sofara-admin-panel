@@ -1,5 +1,7 @@
 import {
+  createArticleTextFields,
   escapeHtml,
+  getPublishConfirmationMessage,
   normalizeArticleSlug,
   saveArticleDocument
 } from './article-publish-utils.mjs';
@@ -76,10 +78,17 @@ function setMessage(text, isError = true) {
 
 function resetForm() {
   form.reset();
-  fields.status.value = 'draft';
+  fields.status.value = 'published';
   fields.articleId.value = '';
   state.selectedArticleId = null;
   editorTitle.textContent = 'مقال جديد';
+  updateSaveButtonLabel();
+}
+
+function updateSaveButtonLabel() {
+  saveArticleButton.textContent = fields.status.value === 'published'
+    ? 'نشر المقال'
+    : 'حفظ كمسودة';
 }
 
 function generateArticleSlug(title) {
@@ -98,15 +107,19 @@ function getArticlePayload() {
   const publishedAtValue = fields.publishedAt.value ? new Date(fields.publishedAt.value).toISOString() : new Date().toISOString();
   const normalizedSlug = normalizeArticleSlug(fields.slug.value);
   const slug = normalizedSlug || generateArticleSlug(fields.title.value.trim());
+  const textFields = createArticleTextFields({
+    category: fields.category.value,
+    description: fields.description.value,
+    excerpt: fields.excerpt.value,
+    content: fields.content.value
+  });
   fields.slug.value = slug;
 
   return {
     slug,
     title: fields.title.value.trim(),
-    category: fields.category.value.trim(),
+    ...textFields,
     status: fields.status.value,
-    description: fields.description.value.trim(),
-    excerpt: fields.excerpt.value.trim(),
     imageUrl: fields.imageUrl.value.trim(),
     imageAlt: fields.imageAlt.value.trim(),
     content: fields.content.value.trim(),
@@ -285,6 +298,7 @@ function openEditorForArticle(id) {
   state.selectedArticleId = id;
   editorTitle.textContent = 'تعديل المقال';
   fillFormFromArticle(article);
+  updateSaveButtonLabel();
   showView('editor');
 }
 
@@ -380,26 +394,30 @@ async function saveArticle() {
     fields.articleId.value = savedArticleId;
     articleWasSaved = true;
 
-    await loadArticles();
-
-    if (isPublished) {
-      const buildStatus = await triggerSiteBuildIfNeeded(payload);
-      if (!buildStatus.ok) {
-        if (buildStatus.deferred) {
-          showView('dashboard');
-          resetForm();
-          setMessage(`تم حفظ المقال في Firebase، لكن ${buildStatus.message} شغّل سير "Publish Firebase articles" في GitHub Actions لتحديث الموقع.`);
-          return;
-        }
-
-        setMessage(`تم حفظ المقال في Firebase، لكن تعذّر تحديث صفحات الموقع: ${buildStatus.message}`);
-        return;
-      }
-    }
+    const buildStatus = isPublished
+      ? await triggerSiteBuildIfNeeded(payload)
+      : { ok: true, skipped: true };
 
     showView('dashboard');
     resetForm();
-    setMessage(isPublished ? 'تم حفظ المقال كمنشور وتوليد صفحات الموقع محليًا بنجاح.' : 'تم حفظ المسودة بنجاح.', false);
+    let refreshWarning = '';
+    try {
+      await loadArticles();
+    } catch (error) {
+      console.error(error);
+      refreshWarning = ` تعذّر تحديث قائمة المقالات في اللوحة: ${error.message || 'حدث خطأ غير معروف.'}`;
+    }
+
+    if (isPublished && !buildStatus.ok) {
+      console.error('Article is live in Firebase, but static-page publishing did not start:', buildStatus.message);
+      setMessage(`${getPublishConfirmationMessage(buildStatus)}${refreshWarning}`, false);
+      return;
+    }
+
+    const confirmation = isPublished
+      ? getPublishConfirmationMessage(buildStatus)
+      : 'تم حفظ المسودة بنجاح.';
+    setMessage(`${confirmation}${refreshWarning}`, false);
   } catch (error) {
     console.error(error);
     setMessage(articleWasSaved
@@ -493,6 +511,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('loadArticlesBtn').addEventListener('click', loadArticlesWithFeedback);
+fields.status.addEventListener('change', updateSaveButtonLabel);
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   await saveArticle();
